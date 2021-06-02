@@ -35,13 +35,12 @@ EPOCHS = 40
 AUTOTUNE = tf.data.AUTOTUNE
 
 
-def input_pipeline():
-    # Input
+def main():
     dataset, metadata = tfds.load(
         'cycle_gan/horse2zebra', with_info=True, as_supervised=True)
 
-    train_horses, train_zebras = dataset['trainA'], dataset['trainB']
-    test_horses, test_zebras = dataset['testA'], dataset['testB']
+    train_x, train_y = dataset['trainA'], dataset['trainB']
+    test_x, test_y = dataset['testA'], dataset['testB']
 
     ''' Preproccessing '''
     # Random Jittering
@@ -86,25 +85,25 @@ def input_pipeline():
 
         return image
 
-    train_horses = train_horses.map(
+    train_x = train_x.map(
         preprocess_image_train, num_parallel_calls=AUTOTUNE).cache().shuffle(
         BUFFER_SIZE).batch(BATCH_SIZE)
 
-    train_zebras = train_zebras.map(
+    train_y = train_y.map(
         preprocess_image_train, num_parallel_calls=AUTOTUNE).cache().shuffle(
         BUFFER_SIZE).batch(BATCH_SIZE)
 
-    test_horses = test_horses.map(
+    test_x = test_x.map(
         preprocess_image_test, num_parallel_calls=AUTOTUNE).cache().shuffle(
         BUFFER_SIZE).batch(BATCH_SIZE)
 
-    test_zebras = test_zebras.map(
+    test_y = test_y.map(
         preprocess_image_test, num_parallel_calls=AUTOTUNE).cache().shuffle(
         BUFFER_SIZE).batch(BATCH_SIZE)
 
+    sample_x = next(iter(train_x))
+    sample_y = next(iter(train_y))
 
-def main():
-    input_pipeline()
 
     generator_g = pix2pix.unet_generator(
         OUTPUT_CHANNELS, norm_type='instancenorm')
@@ -147,7 +146,6 @@ def main():
 
     # Checkpoints
     checkpoint_path = "./checkpoints/train"
-
     ckpt = tf.train.Checkpoint(generator_g=generator_g,
                                generator_f=generator_f,
                                discriminator_x=discriminator_x,
@@ -249,7 +247,7 @@ def main():
         start = time.time()
 
         n = 0
-        for image_x, image_y in tf.data.Dataset.zip((train_horses, train_zebras)):
+        for image_x, image_y in tf.data.Dataset.zip((train_x, train_y)):
             train_step(image_x, image_y)
             if n % 10 == 0:
                 print('.', end='')
@@ -257,9 +255,9 @@ def main():
 
         clear_output(wait=True)
         
-        # Using a consistent image (sample_horse) so that the progress of the model
+        # Using a consistent image (sample_x) so that the progress of the model
         # is clearly visible.
-        generate_images(generator_g, sample_horse)
+        generate_images(generator_g, sample_x)
 
         if (epoch + 1) % 5 == 0:
             ckpt_save_path = ckpt_manager.save()
@@ -268,7 +266,12 @@ def main():
 
         print('Time taken for epoch {} is {} sec\n'.format(
             epoch + 1, time.time()-start))
+    
+    # Run the trained model on the test dataset
+    for inp in test_x.take(5):
+        generate_images(generator_g, inp)
 
 
-if __name__ is '__main__':
+
+if __name__ == '__main__':
     main()
