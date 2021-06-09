@@ -30,7 +30,8 @@ IMG_HEIGHT = 256
 OUTPUT_CHANNELS = 3
 LAMBDA = 10
 
-EPOCHS = 40
+EPOCHS = 999999
+CHECKPOINT_INTERVAL = 1
 
 AUTOTUNE = tf.data.AUTOTUNE
 
@@ -163,6 +164,7 @@ def main():
         ckpt.restore(ckpt_manager.latest_checkpoint)
         print('Latest checkpoint restored.')
 
+
     def generate_images(model, test_input):
         prediction = model(test_input)
 
@@ -243,8 +245,15 @@ def main():
         discriminator_y_optimizer.apply_gradients(
             zip(discriminator_y_gradients, discriminator_y.trainable_variables))
 
+    generate_images(generator_g, sample_x)
+    
+    # Run the trained model on the test dataset
+    for inp in test_x.take(5):
+        generate_images(generator_g, inp)
+
     for epoch in range(EPOCHS):
         start = time.time()
+        print(f'Epoch {epoch + 1} - ', end='')
 
         n = 0
         for image_x, image_y in tf.data.Dataset.zip((train_x, train_y)):
@@ -257,9 +266,9 @@ def main():
         
         # Using a consistent image (sample_x) so that the progress of the model
         # is clearly visible.
-        generate_images(generator_g, sample_x)
+        # generate_images(generator_g, sample_x)
 
-        if (epoch + 1) % 5 == 0:
+        if (epoch + 1) % CHECKPOINT_INTERVAL == 0:
             ckpt_save_path = ckpt_manager.save()
             print('Saving checkpoint for epoch {} at {}'.format(
                 epoch+1, ckpt_save_path))
