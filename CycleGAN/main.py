@@ -246,10 +246,6 @@ def main():
             zip(discriminator_y_gradients, discriminator_y.trainable_variables))
 
     generate_images(generator_g, sample_x)
-    
-    # Run the trained model on the test dataset
-    for inp in test_x.take(5):
-        generate_images(generator_g, inp)
 
     for epoch in range(EPOCHS):
         start = time.time()
@@ -275,6 +271,8 @@ def main():
 
         print('Time taken for epoch {} is {} sec\n'.format(
             epoch + 1, time.time()-start))
+    
+    generate_images(generator_g, sample_x)
     
     # Run the trained model on the test dataset
     for inp in test_x.take(5):
